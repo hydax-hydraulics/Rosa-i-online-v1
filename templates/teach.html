@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Load OpenCV.js -->
+    <script src="https://docs.opencv.org/4.5.4/opencv.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+<style>
+    body {
+      margin: 0;
+      padding: 0;
+      
+    }
+
+    table {
+            width: 50%;
+            border-collapse: collapse;
+        }
+        
+    #image-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 80px;
+        }
+
+    h1 {
+        font-size: 17px;
+    }
+
+
+    .canvas-container {
+           position: relative;
+           width: 80%;
+           padding-bottom: 56.25%; /* 16:9 aspect ratio (height / width * 100%) */
+           overflow: hidden;
+    }
+
+    .canvas-container canvas {
+           position: absolute;
+           top: 0;
+           left: 0;
+           width: 100%;
+           height: 100%;
+    }
+   
+    footer.footer-section {
+      background-color: black;
+      color: white;
+      padding: 18px 0;
+      text-align: center;
+      font-size: 10px;
+    }
+
+    footer.footer-section .container-4 {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    
+</style>
+</head>
+
+</head>
+
+<table>
+<body>
+<div style="overflow-x:auto;">
+    <table>
+    </table>
+    <div id="image-container">
+        <img src="static/rosai.jpg" alt="Image">
+    </div>
+
+</div>
+
+</body>
+
+<br>
+<body>
+<div style="overflow-x:auto;">
+
+
+<main>
+    <center>
+       
+    
+       <div>
+          <h1>Welcome to TEACH Screen</h1>      
+       </div><br><br>
+           <label><b> Name of the Part
+           </b>
+           </label>
+           <br><br> 
+           <input type="text" id="folderNameInput" name="name" placeholder="Enter the Part name" required> 
+           <button id="createButton" type="submit">
+           <img id="button-image" src="static/create1.png" width="40" height="10" alt="Capture Image">
+           </button>
+           <script>
+               document.getElementById('createButton').addEventListener('click', function() {
+                   var folderName = document.getElementById('folderNameInput').value;
+                   fetch('/create', {
+                      method: 'POST',
+                      headers: {
+                          'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({ folder_name: folderName })
+                   })
+                   .then(response => {
+            
+                       if (response.ok) {
+                         alert(`Folder created successfully.`);
+                         window.location.href = "/nextpage"
+                    
+                       } else {
+                             alert('Error creating folder.');
+                       }
+                   })
+                   .then(message => console.log(message))
+                   .catch(error => {
+                       console.error('Error:', error);
+                           alert('Error creating folder');
+                   });
+               });
+           </script>
+           <br>
+           <br>
+<div id="container">
+  
+<div class="video-container">
+        <video id="video" autoplay></video>
+</div>
+
+<div class="canvas-container">
+        <canvas id="canvas" autoplay></canvas>
+</div>
+</div>
+<br>
+
+
+<br>
+<button class="button" id="captureButton" type="submit">
+  <img id="button-image" src="static/11.png" width="60" height="60" alt="Capture Image">
+</button>
+
+<br><br><br>
+
+<button>
+   <img src="static/back.png" value="Back"  width="60" height="60" onclick="history.back()">
+</button> 
+<br><br>
+
+</center>
+
+</main>
+
+<script>
+    async function startWebcamAndCanny() {
+            const captureButton = document.getElementById('captureButton');
+        
+            const canvasElement = document.getElementById('canvas');
+            const context = canvasElement.getContext('2d');
+
+            const videoElement = document.getElementById('video');
+            document.body.appendChild(videoElement);
+                        
+            videoElement.style.display = 'none';
+
+            
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+              videoElement.srcObject = stream;
+             
+            } catch (err) {
+                console.error('Error accessing webcam: ', err);
+            }
+
+
+            // Wait for the video to be loaded
+            videoElement.onloadedmetadata = function() {
+                videoElement.play();
+
+                // Start processing frames
+                processVideo();
+            };
+            
+           var edges;
+        
+            // Function to apply Canny edge detection
+            function processVideo() {
+                // Capture the current frame from the video stream
+                context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                const imageData = context.getImageData(0, 0, canvasElement.width, canvasElement.height);
+
+                // Convert the captured frame to grayscale
+                const frame = cv.matFromImageData(imageData);
+                const grayFrame = new cv.Mat();
+                cv.cvtColor(frame, grayFrame, cv.COLOR_RGBA2GRAY, 0);
+
+                // Apply Canny edge detection directly
+                const edges = new cv.Mat();
+                cv.Canny(grayFrame, edges, 550,550, 3, false);
+
+                // Display the result on the canvas
+                cv.imshow(canvasElement, edges);
+
+                // Free memory
+                frame.delete();
+                grayFrame.delete();
+                edges.delete();
+
+                // Schedule the next frame
+                requestAnimationFrame(processVideo);
+            }
+        
+        
+        captureButton.addEventListener('click', () => {
+            var canvas1 = document.createElement('canvas');
+            canvas1.width = videoElement.videoWidth;
+            canvas1.height = videoElement.videoHeight;
+            const context1 = canvas1.getContext('2d');
+            context1.drawImage(videoElement, 0, 0, canvas1.width, canvas1.height);
+            const imageData1 = canvas1.toDataURL('image/jpeg');
+            
+            fetch('/page1', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ 'image_data': imageData1 }),
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert(`Image saved successfully.`);
+                    window.location.href = "/next_page"
+                } else {
+                     alert('Error uploading image.');
+                }
+            })
+            .then(message => console.log(message))
+            .catch(error => {
+                console.error('Error:', error);
+            });
+            
+                                
+       });
+      }
+
+        // Call the function to start webcam and apply Canny edge detection
+        startWebcamAndCanny();
+</script>
+
+<br>
+<br>
+<footer class="footer-section">
+     <div class="container-4">
+      <div class="nav-items"></div>
+      <div class="text-6">&copy; 2022 HYDAX Hydraulics Pvt. Ltd. All rights reserved.</div>
+     </div>
+  </footer>
+
+
+
+</body>
+</table>
+</html>

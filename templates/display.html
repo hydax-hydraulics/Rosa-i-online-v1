@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Save Live Image</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://docs.opencv.org/4.5.4/opencv.js"></script>
+    
+</head>
+<style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        #image-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        h1 {
+        margin-top: 0;
+        text-align: center;
+        font-size: 90px;
+        font-weight: bold;
+        color: pink;
+        }
+
+        h2 {
+        font-size: 70px;
+        font-weight: bold;
+        }
+
+        h3 {
+          display: none;
+        }
+
+       .dropdown {
+           display: inline-block;
+           position: relative;
+        }
+
+
+        .dropdown-options {
+            display: none;
+            position: absolute;
+            overflow: auto;
+        }
+
+        .dropdown:hover .dropdown-options {
+            display: block;
+        }
+
+
+        .canvas-container {
+           position: relative;
+           width: 80%;
+           padding-bottom: 56.25%; /* 16:9 aspect ratio (height / width * 100%) */
+           overflow: hidden;
+        }
+
+        .canvas-container canvas {
+           position: absolute;
+           top: 0;
+           left: 0;
+           width: 100%;
+           height: 100%;
+        }
+
+
+        /* Added CSS for footer */
+        footer.footer-section {
+        background-color: black;
+        color: white;
+        padding: 20px 0;
+        text-align: center;
+        font-size: 10px;
+        width: 100%;
+        }
+
+        footer.footer-section .container-4 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        }        
+        .image-link {
+            cursor: pointer;
+        }
+
+
+        #myModal {
+            display: none;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 1;
+            width: 80%;
+            height: 80%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.9);
+            padding-top: 60px;
+        }
+
+        /* Styles for the modal content */
+        .modal-content {
+            margin: auto;
+            display: block;
+            width: 50%;
+            max-width: 600px;
+        }
+        .model-content img {
+            width:80px;
+            height:60px;
+        }
+
+        /* Styles for the close button */
+        .close {
+            color: #ccc;
+            position: absolute;
+            top: 10px;
+            right: 25px;
+            font-size: 30px;
+            cursor: pointer;
+        }
+
+        
+
+          </style>
+
+
+<body>
+
+<div id="image-container">
+        <img src="static/rosai.jpg" alt="Image" width="200" height="200">
+    </div>
+
+</body>
+<br>
+<br>
+<br>
+
+<body>
+<h1>Open Screen</h1>
+
+      
+<!-- Thumbnail to trigger the popup -->
+    <img src="{{ href_value }}" alt="Thumbnail" width="200" height="200">
+
+  
+<center>
+       <div>
+          <h2>Welcome to OPEN Screen</h2>      
+       </div>
+       <br>
+      <div id="container">
+  
+        <div class="video-container">
+          <video id="video" autoplay></video>
+        </div>
+
+        <div class="canvas-container">
+         <canvas id="canvas" autoplay></canvas>
+        </div>
+      </div>
+
+<br>
+
+
+<br> 
+    <br>          
+       <button id="test" type="submit">
+       <img id="button-image" src="static/test.png" width="140" height="120"  alt="Capture Image">
+       </button>
+       <br><br>
+    <script>
+       async function startWebcamAndCanny() {
+            const captureButton = document.getElementById('test');
+        
+            const canvasElement = document.getElementById('canvas');
+            const context = canvasElement.getContext('2d');
+
+            const videoElement = document.getElementById('video');
+            document.body.appendChild(videoElement);
+                        
+            videoElement.style.display = 'none';
+
+            
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+              videoElement.srcObject = stream;
+             
+            } catch (err) {
+                console.error('Error accessing webcam: ', err);
+            }
+
+
+            // Wait for the video to be loaded
+            videoElement.onloadedmetadata = function() {
+                videoElement.play();
+
+                // Start processing frames
+                processVideo();
+            };
+            
+           var edges;
+        
+            // Function to apply Canny edge detection
+            function processVideo() {
+                // Capture the current frame from the video stream
+                context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                const imageData = context.getImageData(0, 0, canvasElement.width, canvasElement.height);
+
+                // Convert the captured frame to grayscale
+                const frame = cv.matFromImageData(imageData);
+                const grayFrame = new cv.Mat();
+                cv.cvtColor(frame, grayFrame, cv.COLOR_RGBA2GRAY, 0);
+
+                // Apply Canny edge detection directly
+                const edges = new cv.Mat();
+                cv.Canny(grayFrame, edges, 70,70, 3, false);
+
+                // Display the result on the canvas
+                cv.imshow(canvasElement, edges);
+
+                // Free memory
+                frame.delete();
+                grayFrame.delete();
+                edges.delete();
+
+                // Schedule the next frame
+                requestAnimationFrame(processVideo);
+            }
+        
+
+        captureButton.addEventListener('click', () => {
+            var canvas1 = document.createElement('canvas');
+
+            canvas1.width = videoElement.videoWidth;
+            canvas1.height = videoElement.videoHeight;
+            const context1 = canvas1.getContext('2d');
+            context1.drawImage(videoElement, 0, 0, canvas1.width, canvas1.height);
+            const imageData1 = canvas1.toDataURL('image/jpeg');
+
+            
+
+            
+             fetch('/test', {
+                    method: 'POST',
+                    headers: {
+                         'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({ 'image_data': imageData1 }),
+                    })
+                    .then(response => { 
+                    if (response.ok) {
+                        // Redirect if the server response is successful
+                        window.location.href = '/verify';
+                    } else {
+                        console.error('Failed to fetch data:', response.statusText);
+                    }
+                })
+                    .then(message => console.log(message))
+                    .catch(error => console.error('Error uploading file:', error));
+          
+       });      
+
+       }
+        // Call the function to start webcam and apply Canny edge detection
+       startWebcamAndCanny();
+    </script>
+
+
+ <h3>{{ message }}</h3>
+
+
+
+          
+       
+<button onclick="openModal()">
+<img id="button-image" src="static/verify.png" width="140" height="120" alt="Capture Image">
+</button>
+<br>
+
+<!-- The Modal -->
+<div id="myModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <!-- The two images -->
+        <img id="image1" src="" alt="Image 1" width="200" height="100">
+        <img id="image2" src="" alt="Image 2" width="200" height="100">
+    </div>
+</div>
+
+<script>
+    // JavaScript function to open, close the modal, and set the image source based on condition
+    function openModal() {
+        // Set the condition based on your logic
+        var condition = "{{ message }}";
+
+        // Set the image source dynamically based on the condition
+        var image1 = document.getElementById('image1');
+        var image2 = document.getElementById('image2');
+
+        if (condition) {
+            image1.src = "static/reject.png";
+            image2.src = '';  // Set the second image source to an empty string or another image path
+        } else {
+            image1.src = '';  // Set the first image source to an empty string or another image path
+            image2.src = "static/accept.png";
+        }
+
+        // Display the modal
+        document.getElementById('myModal').style.display = 'block';
+    }
+
+            function closeModal() {
+        // Hide the modal
+        document.getElementById('myModal').style.display = 'none';
+    }
+</script>
+    
+</center>
+
+ 
+  
+
+<br>
+<br>
+<center>
+ <button>
+        
+<img src="static/back.png" value="Back"  width="140" height="120" onclick="history.back()">
+          
+ </button> 
+</center>
+           
+
+
+
+</body>
+<br><br><br>
+<footer class="footer-section">
+  <div class="container-4">
+    <div class="nav-items"></div>
+    <div class="text-6">&copy; 2022 HYDAX Hydraulics Pvt. Ltd. All rights reserved.</div>
+  </div>
+</footer>
+</center>
+</html>

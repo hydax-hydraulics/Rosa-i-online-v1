@@ -1,0 +1,379 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Save Live Image</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <script src="https://docs.opencv.org/4.5.4/opencv.js"></script>
+    
+<style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        #image-container img{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 80px;
+            height: 80px;
+
+        }
+
+        h1 {
+        margin-top: 0;
+        text-align: center;
+        font-size: 30px;
+        font-weight: bold;
+        color: pink;
+        }
+
+        h2 {
+        font-size: 20px;
+        font-weight: bold;
+        }
+
+        h3 {
+          display: none;
+        }
+
+       .dropdown {
+           display: inline-block;
+           position: relative;
+        }
+
+
+        .dropdown-options {
+            display: none;
+            position: absolute;
+            overflow: auto;
+            font-size: 12px;
+        }
+
+        .dropdown:hover .dropdown-options {
+            display: block;
+        }
+
+
+        .canvas-container {
+           position: relative;
+           width: 80%;
+           padding-bottom: 56.25%; /* 16:9 aspect ratio (height / width * 100%) */
+           overflow: hidden;
+    }
+
+    .canvas-container canvas {
+           position: absolute;
+           top: 0;
+           left: 0;
+           width: 100%;
+           height: 100%;
+    }
+
+
+
+        /* Added CSS for footer */
+        footer.footer-section {
+        background-color: black;
+        color: white;
+        padding: 18px 0;
+        text-align: center;
+        font-size: 10px;
+        width: 100%;
+        }
+
+        footer.footer-section .container-4 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        }        
+        .image-link {
+            cursor: pointer;
+        }
+
+
+        #myModal {
+             
+           display: none; /* Hidden by default */
+           position: fixed; /* Stay in place */
+           z-index: 1; /* Sit on top */
+           left: 0;
+           top: 0;
+           width: 100%; /* Full width */
+           height: 100%; /* Full height */
+           overflow: auto; /* Enable scroll if needed */
+           background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+        }
+
+        /* Modal content */
+        .modal-content {
+           background-color: #fefefe;
+           margin: auto;
+           padding: 20px;
+           border: 1px solid #888;
+           width: 80%;
+           max-width: 400px; /* Max width of modal */
+           position: absolute;
+           top: 50%;
+           left: 50%;
+           transform: translate(-50%, -50%); /* Center modal horizontally and vertically */
+        }
+
+        /* Close button */
+        .close {
+           color: #aaa;
+           float: right;
+           font-size: 28px;
+           font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+           color: black;
+           text-decoration: none;
+           cursor: pointer;
+        }
+      </style>
+</head>
+<body>
+
+<div id="image-container">
+        <img src="static/rosai.jpg" alt="Image" width="80" height="80">
+    </div>
+
+</body>
+<br>
+<br>
+
+<body>
+<h1>Open Screen</h1>
+
+
+<div class="dropdown">
+  <button>Image Paths</button>
+  <div class="dropdown-options">
+    {% for path in image_paths %}
+    <a href="/{{path}}" onclick="handleClick(event)">{{path}}</a>
+    {% endfor %}
+  </div>
+</div>
+<script>
+
+
+    function displayImage(value) {
+            document.getElementById("displayedImage").src = href;
+        }
+
+
+    function handleClick(event) {
+        event.preventDefault(); // Prevent the default behavior of the link
+
+        var hrefValue = event.target.href;
+
+        // Use AJAX to send the href value to the server
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/handle_click", true);
+        xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState == 4 && xhr.status == 200) {
+                console.log(xhr.responseText);
+                document.open();
+                document.write(xhr.responseText);
+                document.close();
+                window.location.href = '/display';
+
+
+            }
+        };
+        xhr.send("href=" + encodeURIComponent(hrefValue));
+        }                 
+
+
+      
+</script>
+
+         
+<br><br><br><br>
+<center>
+       <div>
+          <h2>Welcome to OPEN Screen</h2>      
+       </div>
+       <br>
+      <div id="container">
+  
+        <div class="video-container">
+          <video id="video" autoplay></video>
+        </div>
+
+        <div class="canvas-container">
+         <canvas id="canvas" autoplay></canvas>
+        </div>
+      </div>
+
+    <br> 
+           
+       <button id="test" type="submit">
+       <img id="button-image" src="static/test.png" width="60" height="40"  alt="Capture Image">
+       </button>
+       <br>
+    <script>
+    async function startWebcamAndCanny() {
+            const captureButton = document.getElementById('test');
+        
+            const canvasElement = document.getElementById('canvas');
+            const context = canvasElement.getContext('2d');
+
+            const videoElement = document.getElementById('video');
+            document.body.appendChild(videoElement);
+                        
+            videoElement.style.display = 'none';
+
+            
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+              videoElement.srcObject = stream;
+             
+            } catch (err) {
+                console.error('Error accessing webcam: ', err);
+            }
+
+
+            // Wait for the video to be loaded
+            videoElement.onloadedmetadata = function() {
+                videoElement.play();
+
+                // Start processing frames
+                processVideo();
+            };
+            
+           var edges;
+        
+            // Function to apply Canny edge detection
+            function processVideo() {
+                // Capture the current frame from the video stream
+                context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+                const imageData = context.getImageData(0, 0, canvasElement.width, canvasElement.height);
+
+                // Convert the captured frame to grayscale
+                const frame = cv.matFromImageData(imageData);
+                const grayFrame = new cv.Mat();
+                cv.cvtColor(frame, grayFrame, cv.COLOR_RGBA2GRAY, 0);
+
+                // Apply Canny edge detection directly
+                const edges = new cv.Mat();
+                cv.Canny(grayFrame, edges,500,500, 3, false);
+
+                // Display the result on the canvas
+                cv.imshow(canvasElement, edges);
+
+                // Free memory
+                frame.delete();
+                grayFrame.delete();
+                edges.delete();
+
+                // Schedule the next frame
+                requestAnimationFrame(processVideo);
+            }
+        
+        
+        captureButton.addEventListener('click', () => {
+            var canvas1 = document.createElement('canvas');
+            canvas1.width = videoElement.videoWidth;
+            canvas1.height = videoElement.videoHeight;
+            const context1 = canvas1.getContext('2d');
+            context1.drawImage(videoElement, 0, 0, canvas1.width, canvas1.height);
+            const imageData1 = canvas1.toDataURL('image/jpeg');
+
+
+
+            
+            fetch('/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({ 'image_data': imageData1 }),
+            })
+            .then(response => response.text())
+            .then(message => console.log(message))
+            .catch(error => {
+                console.error('Error:', error);
+            });
+            
+
+          }); 
+        }
+        // Call the function to start webcam and apply Canny edge detection
+        startWebcamAndCanny();
+</script>
+        
+    <h3>{{ message }}</h3>
+
+
+<br>
+
+          
+       
+<button onclick="openModal()">
+<img id="button-image" src="static/verify.png" width="60" height="40" alt="Capture Image">
+</button>
+<br>
+
+<!-- The Modal -->
+<div id="myModal" class="modal">
+    <div class="modal-content" id="modalContent" >
+        <span class="close" onclick="closeModal()">&times;</span>
+        {% if message %}
+          <img src="static/reject.png" width="300" height="200" id="rejectImage">
+        {% else %}
+        <!-- accept image -->
+        <img src="static/accept.png" width="300" height="200" id="acceptImage">
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    // JavaScript function to open, close the modal, and set the image source based on condition
+        function openModal() {
+             var modal = document.getElementById("myModal");
+             modal.style.display = "block";   // Display the modal
+        }        
+        
+        function closeModal() {
+        // Hide the modal
+        document.getElementById('myModal').style.display = 'none';
+        window.location.href = "/rosai"
+        }
+</script>
+    
+</center>
+
+ 
+  
+
+<br>
+<center>
+ <button>
+        
+<img src="static/back.png" value="Back"  width="60" height="40" onclick="history.back()">
+          
+ </button> 
+</center>
+           
+
+
+
+</body>
+<br>
+<footer class="footer-section">
+  <div class="container-4">
+    <div class="nav-items"></div>
+    <div class="text-6">&copy; 2022 HYDAX Hydraulics Pvt. Ltd. All rights reserved.</div>
+  </div>
+</footer>
+</center>
+</html>
+
